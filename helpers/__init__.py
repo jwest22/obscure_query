@@ -1,0 +1,1 @@
+from .similarity_index_class import SimilarityIndex

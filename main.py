@@ -3,6 +3,8 @@ import pandas as pd
 import duckdb
 import os
 
+from helpers import SimilarityIndex
+
 def load_csv_to_duckdb(data_dir, db_file_path):
     # Connect to a file-based DuckDB database
     with duckdb.connect(db_file_path) as conn_build:
@@ -43,15 +45,22 @@ st.dataframe(df, use_container_width=True, hide_index=True)
 # SQL Query Input
 
 st.subheader('Write SQL Query')
-sql_query = st.text_area("Enter your SQL query here:", height=150)
-
-run_query = st.button('Run Query')
+sql_query = st.text_area("Enter your SQL query here:", height=100)
 
 # Display Query Results
-if run_query:
+if st.button('Run Query'):
     try:
         result = conn_query.execute(sql_query).fetchdf()
         st.dataframe(result)
     except Exception as e:
         st.error(f"An error occurred: {e}")
  
+if st.button("Compute Similarity Index"):
+    df_info_schema_cols = conn_query.execute("select * from information_schema.columns").fetchdf()
+    
+    db_similarity = SimilarityIndex('demo_data.duckdb')
+
+    k = 128
+
+    similarity_results = db_similarity.compute_similarity_index_for_assets(df_info_schema_cols, k, similarity_threshold=0.8)
+    db_similarity.create_similarity_results_table(similarity_results)
