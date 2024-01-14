@@ -10,7 +10,7 @@ class CardinalityIndex:
             db_path (str): Path to the DuckDB database file.
         """
         
-        self.conn = duckdb.connect(database=db_path, read_only=False)
+        self.db_path = db_path
 
     def create_cardinality_table(self):
         """
@@ -20,6 +20,7 @@ class CardinalityIndex:
         Returns:
             str: A log message indicating the success or failure of the operation.
         """
+        conn = duckdb.connect(database=self.db_path, read_only=False)
         
         log = ""
         
@@ -36,13 +37,16 @@ class CardinalityIndex:
                     from information_schema.columns
             """
             
-            self.conn.execute(create_table_sql)
+            conn.execute(create_table_sql)
             
             log = log + ("Cardinality table successful")
             
         except Exception as e:
             
             log = log + (f"Cardinality table error: {e}")
+            
+        conn.commit()
+        conn.close()
 
         return log
 
@@ -55,9 +59,11 @@ class CardinalityIndex:
             str: A log message indicating the success or failure of the operation.
         """
         
+        conn = duckdb.connect(database=self.db_path, read_only=False)
+        
         query = f"select table_name, column_name from cardinality_index"
         
-        df = self.conn.execute(query).fetchdf()
+        df = conn.execute(query).fetchdf()
         
         log = ""
         
@@ -77,7 +83,7 @@ class CardinalityIndex:
                 where table_name = '{target_table}' and column_name = '{target_column}'
                 """
                 
-                self.conn.execute(sql)
+                conn.execute(sql)
 
             log = log + ("Update cardinality successful")
             
@@ -85,4 +91,7 @@ class CardinalityIndex:
             
             log = log + (f"Update cardinality error: {e}")
 
+        conn.commit()
+        conn.close()
+        
         return log

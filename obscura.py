@@ -20,11 +20,11 @@ def load_csv_to_duckdb(data_dir, db_file_path):
                     conn_build.execute(f"create or replace table {table_name} as select * from '{data_dir}/{filename}'")
 
                     # Log successful loading
-                    print(f"Successfully loaded {filename} into DuckDB as table {table_name}.")
+                    st.write(f"Successfully loaded {filename} into DuckDB as table {table_name}.")
                 except pd.errors.ParserError:
-                    print(f"Error: Failed to parse {filename} as CSV.")
+                    st.write(f"Error: Failed to parse {filename} as CSV.")
                 except Exception as e:
-                    print(f"Error: An unexpected error occurred while processing {filename}: {e}")
+                    st.write(f"Error: An unexpected error occurred while processing {filename}: {e}")
 
 # Specify the path to your DuckDB file
 db_file_path = 'demo_data.duckdb'
@@ -36,6 +36,8 @@ st.title('Obscura Pro Machina')
 
 conn_query = duckdb.connect(db_file_path)
 df = conn_query.execute("select * from information_schema.tables").fetchdf()
+conn_query.commit()
+conn_query.close()
 
 # Display schema information
 st.subheader('Database Schema')
@@ -49,8 +51,12 @@ sql_query = st.text_area("Enter your SQL query here:")
 # Display Query Results
 if st.button('Run Query'):
     try:
+        conn_query = duckdb.connect(db_file_path)
         result = conn_query.execute(sql_query).fetchdf()
         st.dataframe(result)
+        conn_query.commit()
+        conn_query.close()
+        
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
