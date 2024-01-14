@@ -85,18 +85,18 @@ Our hypothesis posits that Large Language Models (LLMs) can engage with relation
 - **Index Creation:** Criteria for adding relations to the index based on the Jaccard similarity coefficient.
 
 
-Let $( G )$ be a graph, $( D = {D_1, D_2, \ldots, D_n} )$ be a set of dataframes, and $( \theta )$ be the threshold for the Jaccard index. For each pair of dataframes $( D_i ) and ( D_j ) in ( D ) where ( i \neq j )$, and for each pair of columns $( c_{ik} ) from ( D_i ) and ( c_{jl} ) from ( D_j ):$
+   Let $( G )$ be a graph, $( D = {D_1, D_2, \ldots, D_n} )$ be a set of dataframes, and $( \theta )$ be the threshold for the Jaccard index. For each pair of dataframes $( D_i )$ and $( D_j )$ in $( D )$ where $( i \neq j )$, and for each pair of columns $( c_{ik} )$ from $( D_i )$ and $( c_{jl} )$ from $( D_j ):$
 
-Check if the data types of $( c_{ik} ) and ( c_{jl} )$ are the same. Compute the Jaccard index, $( J(c_{ik}, c_{jl}) )$, between the two columns. If $( J(c_{ik}, c_{jl}) > \theta )$ and there is no existing edge between $( (D_i, c_{ik}) ) and ( (D_j, c_{jl}) ) in ( G )$, add an edge representing the relationship.
+   Check if the data types of $( c_{ik} )$ and $( c_{jl} )$ are the same. Compute the Jaccard index, $( J(c_{ik}, c_{jl}) )$, between the two columns. If $( J(c_{ik}, c_{jl}) > \theta )$ and there is no existing edge between $( (D_i, c_{ik}) )$ and $( (D_j, c_{jl}) )$ in $( G )$, add an edge representing the relationship.
 
 ##### Cardinality Index
 
 - **Calculation Method:** Determining the ratio of distinct to total non-null values in each column.
 - **Usage:** How this index aids in understanding data distribution and diversity.
 
-$$Let ( S_1 ) and ( S_2 ) be two sets corresponding to the columns of dataframes. The function determines the relationship as follows:
+   Let $( S_1 )$ and $( S_2 )$ be two sets corresponding to the columns of dataframes. The function determines the relationship as follows:
 
-Compute whether ( |S_1| > |U(S_1)| ) and ( |S_2| > |U(S_2)| ), where ( |S| ) is the cardinality of set ( S ) and ( U(S) ) is the number of unique elements in ( S ). Define the relationship as: "many-to-many" if both inequalities hold, "many-to-one" if the first inequality holds but not the second, "one-to-many" if the second inequality holds but not the first, "one-to-one" otherwise$$
+   Compute whether $( |S_1| > |U(S_1)| )$ and $( |S_2| > |U(S_2)| )$, where $( |S| )$ is the cardinality of set $( S )$ and $( U(S) )$ is the number of unique elements in $( S )$. Define the relationship as: "many-to-many" if both inequalities hold, "many-to-one" if the first inequality holds but not the second, "one-to-many" if the second inequality holds but not the first, "one-to-one" otherwise$$
 
 ##### Relation Map
 
