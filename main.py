@@ -32,6 +32,8 @@ data_dir = 'data'
 # Streamlit UI
 st.title('DuckDB SQL Explorer')
 
+"---"
+
 conn_query = duckdb.connect(db_file_path)
 df = conn_query.execute("select * from information_schema.tables").fetchdf()
 
@@ -51,18 +53,19 @@ if st.button('Run Query'):
         st.dataframe(result)
     except Exception as e:
         st.error(f"An error occurred: {e}")
-        
- 
+
+# Database utility functions        
+"---"
 st.write("Utilities")
 
 col1, col2, col3, col4 = st.columns(4, gap="small")
 
 with col1:
-    if st.button("Build DuckDB Database File"):
+    if st.button("Build Database File"):
         load_csv_to_duckdb(data_dir, db_file_path)
 
 with col2:
-    if st.button("Compute Similarity Index"):
+    if st.button("Build Similarity Index"):
         
         df_info_schema_cols = conn_query.execute("select * from information_schema.columns").fetchdf()
         db_similarity = SimilarityIndex('demo_data.duckdb')
@@ -76,7 +79,7 @@ with col2:
         st.write(similarity_index)
 
 with col3:
-    if st.button("Compute Cardinality Index"):
+    if st.button("Build Cardinality Index"):
         db_cardinality = CardinalityIndex('demo_data.duckdb')
         
         cardinality_index = db_cardinality.create_cardinality_table()
@@ -86,9 +89,7 @@ with col3:
         st.write(cardinality_update)
         
 with col4:
-    if st.button("Compute Relation Map"):
+    if st.button("Build Relation Map"):
         db_relation_map = RelationMap('demo_data.duckdb')
         relation_map = db_relation_map.create_relation_map(index_table_id='cardinality_index', similarity_table_id='similarity_index')
         st.write(relation_map)
-        
-# TODO: Add filtering to remove low cardinality values
