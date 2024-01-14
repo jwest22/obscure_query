@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import duckdb
 import os
+import datetime
 
 from helpers import SimilarityIndex, CardinalityIndex, RelationMap
 
@@ -30,8 +31,7 @@ db_file_path = 'demo_data.duckdb'
 data_dir = 'data'
 
 # Streamlit UI
-st.title('DuckDB SQL Explorer')
-
+st.title('Obscura Pro Machina')
 "---"
 
 conn_query = duckdb.connect(db_file_path)
@@ -56,7 +56,7 @@ if st.button('Run Query'):
 
 # Database utility functions        
 "---"
-st.write("Utilities")
+st.subheader("Utilities")
 
 col1, col2, col3, col4 = st.columns(4, gap="small")
 
@@ -95,9 +95,20 @@ with col4:
         st.write(relation_map)
 
 "---"
-st.write("Relation Map")
+st.subheader("Relation Map")
 
 if st.button("Serialize Relaion Map"):
+    
     db_serialized_map = RelationMap('demo_data.duckdb')
     serialized_map = db_serialized_map.serialize_relation_map('relation_map')
-    st.markdown(serialized_map,unsafe_allow_html=True)
+        
+    download_map = serialized_map.replace('#','').replace('*','')
+        
+    current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+    file = f'relation_map_{current_time}.txt'
+        
+    st.download_button("Download Relation Map", data=download_map, file_name=file, mime='text')
+
+    with st.expander('Relation Map', expanded=True):
+            st.markdown(serialized_map,unsafe_allow_html=True)
