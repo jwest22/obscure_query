@@ -123,7 +123,10 @@ class SimilarityIndex:
             )
             """
             conn.execute(create_table_query)
+        except Exception as e:
+            print(f"Error building similarity_index table: {e}")
 
+        try:
             # Insert the data into the table
             insert_query = "INSERT INTO similarity_index (table1, column1, table2, column2, similarity_index) VALUES (?, ?, ?, ?, ?)"
             for result in similarity_index:

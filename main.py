@@ -71,3 +71,5 @@ if st.button("Compute Cardinality Index"):
     db_cardinality = CardinalityIndex('demo_data.duckdb')
     st.write(db_cardinality.create_cardinality_table())
     st.write(db_cardinality.update_duckdb_table_with_cardinality())
+
+# TODO: Add filtering to remove low cardinality values
