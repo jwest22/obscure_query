@@ -1,1 +1,2 @@
 from .similarity_index_class import SimilarityIndex
+from .cardinality_class import CardinalityIndex

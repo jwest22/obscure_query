@@ -63,7 +63,7 @@ class SimilarityIndex:
         """
         return minhash1.jaccard(minhash2)
 
-    def compute_similarity_index_for_assets(self, dataframe, k, similarity_threshold=0.5):
+    def compute_similarity_index_for_assets(self, dataframe, k, similarity_threshold=0.7):
         """
         Computes similarity indices for all unique pairs of columns in a dataframe that have the same data type and 
         appends only those with a similarity index above a specified threshold.
@@ -76,7 +76,7 @@ class SimilarityIndex:
         Returns:
         list of tuples: Each tuple contains (table1, column1, table2, column2, similarity_index).
         """
-        filtered_df = dataframe[dataframe['table_name'] != 'similarity_results']
+        filtered_df = dataframe[dataframe['table_name'] != 'similarity_index']
         selected_columns_df = filtered_df[['table_name', 'column_name', 'data_type']]
 
         column_pairs = []
@@ -89,7 +89,7 @@ class SimilarityIndex:
                     if type1 == type2 and table1 != table2 and (table2, col2, table1, col1) not in column_pairs:
                         column_pairs.append((table1, col1, table2, col2))
 
-        similarity_results = []
+        similarity_df = []
         for table1, col1, table2, col2 in column_pairs:
             values1 = self.get_column_values(table1, col1) 
             values2 = self.get_column_values(table2, col2)
@@ -99,22 +99,22 @@ class SimilarityIndex:
 
             similarity_index = self.compute_similarity_index_minhash(minhash1, minhash2)
             if similarity_index >= similarity_threshold:
-                similarity_results.append((table1, col1, table2, col2, similarity_index))
+                similarity_df.append((table1, col1, table2, col2, similarity_index))
 
-        return similarity_results
+        return similarity_df
 
-    def create_similarity_results_table(self, similarity_results):
+    def create_similarity_index_table(self, similarity_index):
         """
         Creates a table in the DuckDB database and inserts the similarity results.
 
         Args:
-        similarity_results (list of tuples): The similarity results to be stored, where each tuple is 
+        similarity_index (list of tuples): The similarity results to be stored, where each tuple is 
                                             (table1, column1, table2, column2, similarity_index).
         """
         conn = duckdb.connect(self.db_path)
         try:
             create_table_query = """
-            CREATE TABLE IF NOT EXISTS similarity_results (
+            CREATE TABLE IF NOT EXISTS similarity_index (
                 table1 VARCHAR,
                 column1 VARCHAR,
                 table2 VARCHAR,
@@ -123,16 +123,18 @@ class SimilarityIndex:
             )
             """
             conn.execute(create_table_query)
-        except Exception as e:
-            print(f"Error: An unexpected error occurred while creating the similarity_index: {e}")
-        
-        try:
+
             # Insert the data into the table
-            insert_query = "INSERT INTO similarity_results (table1, column1, table2, column2, similarity_index) VALUES (?, ?, ?, ?, ?)"
-            for result in similarity_results:
+            insert_query = "INSERT INTO similarity_index (table1, column1, table2, column2, similarity_index) VALUES (?, ?, ?, ?, ?)"
+            for result in similarity_index:
                 conn.execute(insert_query, result)
+                print(f"Inserted {result}")
+            
+            log = ("Successfully inserted values into similarity_index.")
         except Exception as e:
-            print(f"Error: An unexpected error occurred while inserting values into similarity_index: {e}")         
+            log = (f"Error: An unexpected error occurred while inserting values into similarity_index: {e}")         
             
         conn.commit()
         conn.close()
+
+        return log

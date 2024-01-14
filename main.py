@@ -3,7 +3,7 @@ import pandas as pd
 import duckdb
 import os
 
-from helpers import SimilarityIndex
+from helpers import SimilarityIndex, CardinalityIndex
 
 def load_csv_to_duckdb(data_dir, db_file_path):
     # Connect to a file-based DuckDB database
@@ -32,9 +32,6 @@ data_dir = 'data'
 # Streamlit UI
 st.title('DuckDB SQL Explorer')
 
-if st.button("Build DuckDB DB"):
-    load_csv_to_duckdb(data_dir, db_file_path)
-
 conn_query = duckdb.connect(db_file_path)
 df = conn_query.execute("select * from information_schema.tables").fetchdf()
 
@@ -55,6 +52,11 @@ if st.button('Run Query'):
     except Exception as e:
         st.error(f"An error occurred: {e}")
  
+st.write("Utilities")
+
+if st.button("Build DuckDB DB"):
+    load_csv_to_duckdb(data_dir, db_file_path)
+
 if st.button("Compute Similarity Index"):
     df_info_schema_cols = conn_query.execute("select * from information_schema.columns").fetchdf()
     
@@ -63,4 +65,9 @@ if st.button("Compute Similarity Index"):
     k = 128
 
     similarity_results = db_similarity.compute_similarity_index_for_assets(df_info_schema_cols, k, similarity_threshold=0.8)
-    db_similarity.create_similarity_results_table(similarity_results)
+    st.write(db_similarity.create_similarity_index_table(similarity_results))
+
+if st.button("Compute Cardinality Index"):
+    db_cardinality = CardinalityIndex('demo_data.duckdb')
+    st.write(db_cardinality.create_cardinality_table())
+    st.write(db_cardinality.update_duckdb_table_with_cardinality())
