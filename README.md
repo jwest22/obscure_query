@@ -50,4 +50,4 @@ The application interface is divided into several sections:
 
 3. **Utilities:** Buttons for utility functions: building database files, similarity indexes, cardinality indexes, and relation maps.
 
-4. **Serialize Relation Map**: Button to render the relation map in a human readable format for interaction with an LLM. 
+4. **Serialize Relation Map**: Render & download the relation map in a human readable format for interaction with an LLM. 
