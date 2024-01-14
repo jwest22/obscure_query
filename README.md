@@ -1,5 +1,8 @@
 # Obscura Pro Machina
 
+This repository supports the "Keep Your Secrets" research paper written by Jake Stewart & Matt Riedel. 
+The goal of the paper is to demonstrate a light-weight pattern that allows for LLM & data model interactivity without exposing the underlying data to the LLM.
+
 ## Installation
 
 To run this application, you'll need to install the necessary dependencies:
