@@ -93,3 +93,11 @@ with col4:
         db_relation_map = RelationMap('demo_data.duckdb')
         relation_map = db_relation_map.create_relation_map(index_table_id='cardinality_index', similarity_table_id='similarity_index')
         st.write(relation_map)
+
+"---"
+st.write("Relation Map")
+
+if st.button("Serialize Relaion Map"):
+    db_serialized_map = RelationMap('demo_data.duckdb')
+    serialized_map = db_serialized_map.serialize_relation_map('relation_map')
+    st.markdown(serialized_map,unsafe_allow_html=True)

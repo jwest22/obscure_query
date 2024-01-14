@@ -16,12 +16,14 @@ class RelationMap:
 
         query = f"""
         select 
-            cast(inter_a.table_name as string) as left_table_name,
-            cast(inter_b.table_name as string) as right_table_name,
-            cast(inter_a.column_name as string) as left_column_name,
-            cast(inter_b.column_name as string) as right_column_name,
-            inter_a.cardinality as left_card,
-            inter_b.cardinality as right_card,
+            cast(inter_a.table_name as string) as table_name_left,
+            cast(inter_b.table_name as string) as table_name_right,
+            cast(inter_a.column_name as string) as column_name_left,
+            cast(inter_b.column_name as string) as column_name_right,
+            cast(inter_a.data_type as string) as data_type_left,
+            cast(inter_b.data_type as string) as data_type_right,
+            inter_a.cardinality as cardinality_left,
+            inter_b.cardinality as cardinality_right,
             1 as weight,
             0 as priority
             
@@ -31,17 +33,22 @@ class RelationMap:
             and inter_a.column_name = inter_b.column_name
             and inter_a.data_type = inter_b.data_type
             
-        where inter_a.column_name != ('id') and inter_b.column_name != ('id')
+        where (inter_a.column_name != ('id') and inter_b.column_name != ('id'))
+            and (inter_a.column_name not like ('%deleted%') and inter_b.column_name not like ('%deleted%'))
+            and inter_a.data_type != 'DOUBLE'
+            and inter_b.data_type != 'DOUBLE'
             
         union all
         
         select
-            cast(similarity_a.table_name as string) as left_table_name,
-            cast(similarity_b.table_name as string) as right_table_name,
-            cast(similarity_a.column_name as string) as left_column_name,
-            cast(similarity_b.column_name as string) as right_column_name,
-            similarity_a.cardinality as left_card,
-            similarity_b.cardinality as right_card,
+            cast(similarity_a.table_name as string) as table_name_left,
+            cast(similarity_b.table_name as string) as table_name_right,
+            cast(similarity_a.column_name as string) as column_name_left,
+            cast(similarity_b.column_name as string) as column_name_right,
+            cast(similarity_a.data_type as string) as data_type_left,
+            cast(similarity_b.data_type as string) as data_type_right,
+            similarity_a.cardinality as cardinality_left,
+            similarity_b.cardinality as cardinality_right,
             similarity.similarity_index as weight,
             1 as priority
             
@@ -72,3 +79,63 @@ class RelationMap:
             log = log + (f"Relation map error: {e}")
         
         return log
+
+    def serialize_relation_map(self, map_table_id):
+        
+        conn = duckdb.connect(self.db_path)
+        
+        index_query = f"""
+            select 
+                table_name,
+                column_name,
+                data_type
+            from information_schema.columns
+            
+            where table_name not in ('similarity_index','cardinality_index','relation_map')
+        """ 
+        relation_query = f"""
+            select 
+                table_name_left,
+                column_name_left,
+                data_type_left,
+                if(cardinality_left < 1, 'many','one') as join_type_left,
+                
+                table_name_right,
+                column_name_right,
+                data_type_right,
+                if(cardinality_right < 1, 'many','one') as join_type_right
+                
+            from {map_table_id}
+            
+            where cardinality_left = 1 or cardinality_right = 1
+        """
+        
+        # Execute queries with DuckDB
+        index_map = conn.execute(index_query).fetchdf()
+        relation_map_enriched = conn.execute(relation_query).fetchdf()
+        
+        # Create a schema map for tables and columns with data types
+        schema_map = {}
+        for _, row in index_map.iterrows():
+            table_name = row['table_name']
+            column_name = row['column_name']
+            data_type = row['data_type']
+            if table_name not in schema_map:
+                schema_map[table_name] = {}
+            schema_map[table_name][column_name] = data_type
+
+        # Serialize the table schema with data types
+        schema_str = "## Database Schema Description\n"
+        for table_name, columns in schema_map.items():
+            schema_str += f"### Table: {table_name}\n#### Columns:\n"
+            for column_name, data_type in columns.items():
+                schema_str += f"- **{column_name}**: *{data_type}*\n"
+
+        # Serialize the DataFrame to a human-readable schema map
+        schema_map_str = "## Relations\n"
+        for index, row in relation_map_enriched.iterrows():
+            schema_map_str += (
+                f"- **{row['table_name_left']}.{row['column_name_left']}** references **{row['table_name_right']}.{row['column_name_right']}** forming a **{row['join_type_left']}**-to-**{row['join_type_right']}** relationship.\n"
+            )
+            
+        return schema_str + schema_map_str

@@ -118,11 +118,11 @@ class SimilarityIndex:
         try:
             create_table_query = """
                 create or replace table similarity_index (
-                    table1 VARCHAR,
-                    column1 VARCHAR,
-                    table2 VARCHAR,
-                    column2 VARCHAR,
-                    similarity_index DOUBLE
+                    table1 varchar,
+                    column1 varchar,
+                    table2 varchar,
+                    column2 varchar,
+                    similarity_index double
                 )
                 """
             conn.execute(create_table_query)
