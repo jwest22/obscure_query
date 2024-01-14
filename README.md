@@ -63,7 +63,7 @@ MIT License found in `LICENSE.TXT`
 
 ### Abstract
 
-The rapid advancement of relational data models forms the backbone of most contemporary organizations, necessitating substantial resources for their curation and maintenance. With business intelligence tools often restricted to fixed visualizations and limited user-input options, there is a pressing need for innovation. Large Language Models (LLMs) hold the promise of revolutionizing business intelligence through their capabilities in understanding unstructured queries, relational data model comprehension, and advanced code generation. Our hypothesis proposes that LLMs can interact with data models without exposing the underlying data, achieving this in a secure, efficient, and cost-effective manner. This paper introduces the Oblivious Query Retrieval pattern, a novel approach leveraging LLMs for enhanced business intelligence.
+Relational data models form the backbone of the contemporary organization, necessitating substantial resources for curation and maintenance. With business intelligence tools often restricted to fixed visualizations and limited user-input options, there is a pressing need for innovation. Large Language Models (LLMs) hold the promise of revolutionizing business intelligence through their capabilities in understanding unstructured queries, relational data model comprehension, and advanced code generation. Our hypothesis proposes that LLMs can interact with data models without exposing the underlying data, achieving this in a secure, efficient, and cost-effective manner. This paper introduces the Oblivious Query Retrieval pattern, a novel approach leveraging LLMs for enhanced business intelligence.
 
 ### Introduction
 
