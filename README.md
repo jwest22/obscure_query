@@ -85,9 +85,9 @@ Our hypothesis posits that Large Language Models (LLMs) can engage with relation
 - **Index Creation:** Criteria for adding relations to the index based on the Jaccard similarity coefficient.
 
 
-$$Let ( G ) be a graph, ( D = {D_1, D_2, \ldots, D_n} ) be a set of dataframes, and ( \theta ) be the threshold for the Jaccard index. For each pair of dataframes ( D_i ) and ( D_j ) in ( D ) where ( i \neq j ), and for each pair of columns ( c_{ik} ) from ( D_i ) and ( c_{jl} ) from ( D_j ):$$
+Let $( G )$ be a graph, $( D = {D_1, D_2, \ldots, D_n} )$ be a set of dataframes, and $( \theta )$ be the threshold for the Jaccard index. For each pair of dataframes $( D_i ) and ( D_j ) in ( D ) where ( i \neq j )$, and for each pair of columns $( c_{ik} ) from ( D_i ) and ( c_{jl} ) from ( D_j ):$
 
-$$Check if the data types of ( c_{ik} ) and ( c_{jl} ) are the same. Compute the Jaccard index, ( J(c_{ik}, c_{jl}) ), between the two columns. If ( J(c_{ik}, c_{jl}) > \theta ) and there is no existing edge between ( (D_i, c_{ik}) ) and ( (D_j, c_{jl}) ) in ( G ), add an edge representing the relationship determined by determine_relationship().$$
+Check if the data types of $( c_{ik} ) and ( c_{jl} )$ are the same. Compute the Jaccard index, $( J(c_{ik}, c_{jl}) )$, between the two columns. If $( J(c_{ik}, c_{jl}) > \theta )$ and there is no existing edge between $( (D_i, c_{ik}) ) and ( (D_j, c_{jl}) ) in ( G )$, add an edge representing the relationship.
 
 ##### Cardinality Index
 
