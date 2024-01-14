@@ -23,14 +23,21 @@ class SimilarityIndex:
         Returns:
         pandas.Series: Series containing the values from the specified column.
         """
+        
         conn = duckdb.connect(self.db_path)
+        
         query = f"SELECT {column_name} FROM {table_name}"
+        
         try:
             result = conn.execute(query).fetchdf()
+            
             return result[column_name]
+        
         except Exception as e:
             print(f"An error occurred: {e}")
+            
             return pd.Series()
+        
         finally:
             conn.close()
 
@@ -45,9 +52,12 @@ class SimilarityIndex:
         Returns:
         MinHash: MinHash object representing the MinHash of the given values.
         """
+        
         m = MinHash(num_perm=num_perm)
+        
         for v in values:
             m.update(str(v).encode('utf8'))
+            
         return m
 
     def compute_similarity_index_minhash(self, minhash1, minhash2):

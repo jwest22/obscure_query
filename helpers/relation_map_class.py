@@ -11,6 +11,19 @@ class RelationMap:
         self.db_path = db_path
         
     def create_relation_map(self, index_table_id, similarity_table_id, target_table_id = 'relation_map'):
+        """
+        Creates a relation map in the DuckDB database. This map represents relationships between tables based on
+        column similarities and other criteria.
+
+        Args:
+            index_table_id (str): Identifier for the index table used to build relations.
+            similarity_table_id (str): Identifier for the similarity table used to build relations.
+            target_table_id (str, optional): Name of the target table where the relation map will be stored. 
+                                             Defaults to 'relation_map'.
+
+        Returns:
+            str: A log message indicating the success or failure of the operation.
+        """
 
         conn = duckdb.connect(self.db_path)
 
@@ -81,6 +94,16 @@ class RelationMap:
         return log
 
     def serialize_relation_map(self, map_table_id):
+        """
+        Serializes the relation map into a human-readable format, including a description of the database schema
+        and the relationships between tables.
+
+        Args:
+            map_table_id (str): Identifier for the map table that contains the relationship data.
+
+        Returns:
+            str: A string representation of the database schema and the relation map.
+        """
         
         conn = duckdb.connect(self.db_path)
         
@@ -116,6 +139,7 @@ class RelationMap:
         
         # Create a schema map for tables and columns with data types
         schema_map = {}
+        
         for _, row in index_map.iterrows():
             table_name = row['table_name']
             column_name = row['column_name']
@@ -126,6 +150,7 @@ class RelationMap:
 
         # Serialize the table schema with data types
         schema_str = "## Database Schema Description\n"
+        
         for table_name, columns in schema_map.items():
             schema_str += f"### Table: {table_name}\n#### Columns:\n"
             for column_name, data_type in columns.items():
@@ -133,6 +158,7 @@ class RelationMap:
 
         # Serialize the DataFrame to a human-readable schema map
         schema_map_str = "## Relations\n"
+        
         for index, row in relation_map_enriched.iterrows():
             schema_map_str += (
                 f"- **{row['table_name_left']}.{row['column_name_left']}** references **{row['table_name_right']}.{row['column_name_right']}** forming a **{row['join_type_left']}**-to-**{row['join_type_right']}** relationship.\n"

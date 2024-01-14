@@ -18,7 +18,7 @@ or `pip install -r requirements.txt`
 
 To start the application, navigate to your project directory in the terminal and run:
 
-`streamlit run main.py`
+`streamlit run obscura.py`
 
 ## Features
 
@@ -38,6 +38,7 @@ To start the application, navigate to your project directory in the terminal and
 - Build Similarity Index: Generate a similarity index for data assets.
 - Build Cardinality Index: Create a cardinality index for database tables.
 - Build Relation Map: Establish a relation map based on the cardinality and similarity indexes.
+- Serialize Relation Map: Filter invalid relations and render the relation map in a human readable format suitable for ingestion by an LLM.
 
 ## Usage
 
@@ -48,3 +49,5 @@ The application interface is divided into several sections:
 2. **Write SQL Query:** This section allows you to write and execute SQL queries directly. DML operations are supported.
 
 3. **Utilities:** Buttons for utility functions: building database files, similarity indexes, cardinality indexes, and relation maps.
+
+4. **Serialize Relation Map**: Button to render the relation map in a human readable format for interaction with an LLM. 
