@@ -59,6 +59,7 @@ MIT License found in `LICENSE.TXT`
 ---
 
 # Keep Your Secrets
+
 ## Oblivious Query Retrieval: Enhancing Business Intelligence through Large Language Models (LLMs) and Secure Data Model Interaction
 
 ### Abstract
