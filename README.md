@@ -18,7 +18,7 @@ or `pip install -r requirements.txt`
 
 To start the application, navigate to your project directory in the terminal and run:
 
-streamlit run main.py
+`streamlit run main.py`
 
 ## Features
 
@@ -43,8 +43,8 @@ streamlit run main.py
 
 The application interface is divided into several sections:
 
-1. Database Schema: View the current schema of the database. Reload the application to reflect any changes made to the database.
+1. **Database Schema:** View the current schema of the database. Reload the application to reflect any changes made to the database.
 
-2. Write SQL Query: This section allows you to write and execute SQL queries directly. DML operations are supported.
+2. **Write SQL Query:** This section allows you to write and execute SQL queries directly. DML operations are supported.
 
-3. Utilities: Buttons for utility functions: building database files, similarity indexes, cardinality indexes, and relation maps.
+3. **Utilities:** Buttons for utility functions: building database files, similarity indexes, cardinality indexes, and relation maps.
