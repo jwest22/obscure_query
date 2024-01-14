@@ -6,9 +6,10 @@ class CardinalityIndex:
         self.conn = duckdb.connect(database=db_path, read_only=False)
 
     def create_cardinality_table(self):
+        log = ""
         try:
             create_table_sql = """
-                create table cardinality_index as
+                create or replace table cardinality_index as
 
                     select
                         table_name,
@@ -19,16 +20,16 @@ class CardinalityIndex:
                     from information_schema.columns
             """
             self.conn.execute(create_table_sql)
-            log = ("Successfully built cardinality_index.")
+            log = log + ("create_cardinality_table successful")
         except Exception as e:
-            log = (f"Error: An unexpected error occurred while creating the cardinality_index: {e}")
+            log = log + (f"create_cardinality_table error: {e}")
 
         return log
 
     def update_duckdb_table_with_cardinality(self):
         query = f"select table_name, column_name from cardinality_index"
         df = self.conn.execute(query).fetchdf()
-
+        log = ""
         try:
             for index, row in df.iterrows():
                 target_table = row['table_name']
@@ -45,8 +46,8 @@ class CardinalityIndex:
                 """
                 self.conn.execute(sql)
 
-            log = ("cardinality_index has been updated with cardinality")
+            log = log + ("update_duckdb_table_with_cardinality successful")
         except Exception as e:
-            log = (f"Error: An unexpected error occurred while updating the cardinality_index: {e}")
+            log = log + (f"update_duckdb_table_with_cardinality error: {e}")
 
         return log

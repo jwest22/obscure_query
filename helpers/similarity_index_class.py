@@ -112,30 +112,33 @@ class SimilarityIndex:
                                             (table1, column1, table2, column2, similarity_index).
         """
         conn = duckdb.connect(self.db_path)
+        
+        log = ""
+        
         try:
             create_table_query = """
-            CREATE TABLE IF NOT EXISTS similarity_index (
-                table1 VARCHAR,
-                column1 VARCHAR,
-                table2 VARCHAR,
-                column2 VARCHAR,
-                similarity_index DOUBLE
-            )
-            """
+                create or replace table similarity_index (
+                    table1 VARCHAR,
+                    column1 VARCHAR,
+                    table2 VARCHAR,
+                    column2 VARCHAR,
+                    similarity_index DOUBLE
+                )
+                """
             conn.execute(create_table_query)
         except Exception as e:
-            print(f"Error building similarity_index table: {e}")
+            log = log + (f"similarity_index table error: {e}")
 
         try:
             # Insert the data into the table
-            insert_query = "INSERT INTO similarity_index (table1, column1, table2, column2, similarity_index) VALUES (?, ?, ?, ?, ?)"
+            insert_query = "insert into similarity_index (table1, column1, table2, column2, similarity_index) values (?, ?, ?, ?, ?)"
             for result in similarity_index:
                 conn.execute(insert_query, result)
                 print(f"Inserted {result}")
-            
-            log = ("Successfully inserted values into similarity_index.")
+
+            log = log + ("similarity_index table insert successful")
         except Exception as e:
-            log = (f"Error: An unexpected error occurred while inserting values into similarity_index: {e}")         
+            log = log + (f"similarity_index table insert error: {e}")         
             
         conn.commit()
         conn.close()

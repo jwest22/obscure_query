@@ -16,7 +16,7 @@ def load_csv_to_duckdb(data_dir, db_file_path):
                     table_name = os.path.splitext(filename)[0]
 
                     # Create a table in DuckDB from the DataFrame
-                    conn_build.execute(f"CREATE TABLE {table_name} AS SELECT * FROM '{data_dir}/{filename}'")
+                    conn_build.execute(f"create or replace table {table_name} as select * from '{data_dir}/{filename}'")
 
                     # Log successful loading
                     print(f"Successfully loaded {filename} into DuckDB as table {table_name}.")
@@ -42,7 +42,7 @@ st.dataframe(df, use_container_width=True, hide_index=True)
 # SQL Query Input
 
 st.subheader('Write SQL Query')
-sql_query = st.text_area("Enter your SQL query here:", height=100)
+sql_query = st.text_area("Enter your SQL query here:")
 
 # Display Query Results
 if st.button('Run Query'):
@@ -51,25 +51,38 @@ if st.button('Run Query'):
         st.dataframe(result)
     except Exception as e:
         st.error(f"An error occurred: {e}")
+        
  
 st.write("Utilities")
 
-if st.button("Build DuckDB DB"):
-    load_csv_to_duckdb(data_dir, db_file_path)
+col1, col2, col3 = st.columns(3, gap="small")
 
-if st.button("Compute Similarity Index"):
-    df_info_schema_cols = conn_query.execute("select * from information_schema.columns").fetchdf()
-    
-    db_similarity = SimilarityIndex('demo_data.duckdb')
+with col1:
+    if st.button("Build DuckDB Database File"):
+        load_csv_to_duckdb(data_dir, db_file_path)
 
-    k = 128
+with col2:
+    if st.button("Compute Similarity Index"):
+        
+        df_info_schema_cols = conn_query.execute("select * from information_schema.columns").fetchdf()
+        db_similarity = SimilarityIndex('demo_data.duckdb')
 
-    similarity_results = db_similarity.compute_similarity_index_for_assets(df_info_schema_cols, k, similarity_threshold=0.8)
-    st.write(db_similarity.create_similarity_index_table(similarity_results))
+        # Number of minhash functions
+        k = 128
 
-if st.button("Compute Cardinality Index"):
-    db_cardinality = CardinalityIndex('demo_data.duckdb')
-    st.write(db_cardinality.create_cardinality_table())
-    st.write(db_cardinality.update_duckdb_table_with_cardinality())
+        similarity_results = db_similarity.compute_similarity_index_for_assets(df_info_schema_cols, k, similarity_threshold=0.8)
+        similarity_index = db_similarity.create_similarity_index_table(similarity_results)
+
+        st.write(similarity_index)
+
+with col3:
+    if st.button("Compute Cardinality Index"):
+        db_cardinality = CardinalityIndex('demo_data.duckdb')
+        
+        cardinality_index = db_cardinality.create_cardinality_table()
+        st.write(cardinality_index)
+        
+        cardinality_update = db_cardinality.update_duckdb_table_with_cardinality()
+        st.write(cardinality_update)
 
 # TODO: Add filtering to remove low cardinality values
