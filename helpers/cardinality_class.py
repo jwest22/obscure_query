@@ -20,9 +20,9 @@ class CardinalityIndex:
                     from information_schema.columns
             """
             self.conn.execute(create_table_sql)
-            log = log + ("create_cardinality_table successful")
+            log = log + ("Cardinality table successful")
         except Exception as e:
-            log = log + (f"create_cardinality_table error: {e}")
+            log = log + (f"Cardinality table error: {e}")
 
         return log
 
@@ -46,8 +46,8 @@ class CardinalityIndex:
                 """
                 self.conn.execute(sql)
 
-            log = log + ("update_duckdb_table_with_cardinality successful")
+            log = log + ("Update cardinality successful")
         except Exception as e:
-            log = log + (f"update_duckdb_table_with_cardinality error: {e}")
+            log = log + (f"Update cardinality error: {e}")
 
         return log

@@ -127,18 +127,17 @@ class SimilarityIndex:
                 """
             conn.execute(create_table_query)
         except Exception as e:
-            log = log + (f"similarity_index table error: {e}")
+            log = log + (f"Similarity index table error: {e}")
 
         try:
             # Insert the data into the table
             insert_query = "insert into similarity_index (table1, column1, table2, column2, similarity_index) values (?, ?, ?, ?, ?)"
             for result in similarity_index:
                 conn.execute(insert_query, result)
-                print(f"Inserted {result}")
 
-            log = log + ("similarity_index table insert successful")
+            log = log + ("Similarity index table insert successful")
         except Exception as e:
-            log = log + (f"similarity_index table insert error: {e}")         
+            log = log + (f"Similarity index table insert error: {e}")         
             
         conn.commit()
         conn.close()

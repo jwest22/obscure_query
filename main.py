@@ -3,7 +3,7 @@ import pandas as pd
 import duckdb
 import os
 
-from helpers import SimilarityIndex, CardinalityIndex
+from helpers import SimilarityIndex, CardinalityIndex, RelationMap
 
 def load_csv_to_duckdb(data_dir, db_file_path):
     # Connect to a file-based DuckDB database
@@ -55,7 +55,7 @@ if st.button('Run Query'):
  
 st.write("Utilities")
 
-col1, col2, col3 = st.columns(3, gap="small")
+col1, col2, col3, col4 = st.columns(4, gap="small")
 
 with col1:
     if st.button("Build DuckDB Database File"):
@@ -84,5 +84,11 @@ with col3:
         
         cardinality_update = db_cardinality.update_duckdb_table_with_cardinality()
         st.write(cardinality_update)
-
+        
+with col4:
+    if st.button("Compute Relation Map"):
+        db_relation_map = RelationMap('demo_data.duckdb')
+        relation_map = db_relation_map.create_relation_map(index_table_id='cardinality_index', similarity_table_id='similarity_index')
+        st.write(relation_map)
+        
 # TODO: Add filtering to remove low cardinality values
