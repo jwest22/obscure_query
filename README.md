@@ -1,6 +1,6 @@
 # Oblivious Query Retrieval
 
-This repository supports the "Keep Your Secrets" research paper written by JS & MR. 
+This repository supports the "Keep Your Secrets" research paper written by JS. 
 The goal of the paper is to demonstrate a light-weight pattern that allows for LLM & data model interactivity without exposing the underlying data to the LLM.
 
 ## Installation
@@ -58,7 +58,7 @@ MIT License found in `LICENSE.TXT`
 
 ---
 
-# Keep Your Secrets
+# Keep Your Secrets **(WORK IN PROGRESS)**
 **Oblivious Query Retrieval:** Enhancing Business Intelligence through Large Language Models (LLMs) and Secure Data Model Interaction
 
 ### Abstract
