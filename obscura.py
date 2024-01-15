@@ -4,7 +4,20 @@ import duckdb
 import os
 import datetime
 
-from helpers import SimilarityIndex, CardinalityIndex, RelationMap
+from streamlit import session_state as state
+from helpers import SimilarityIndex, CardinalityIndex, RelationMap, callOpenAI
+
+if 'relation_map' not in state:
+    state.relation_map = None
+    
+if 'question' not in state:
+    state.question = None
+        
+if 'openai_api_key' not in state:
+    state.openai_api_key = None
+    
+if 'openai_response' not in state:
+    state.openai_response = None
 
 def load_csv_to_duckdb(data_dir, db_file_path):
     # Connect to a file-based DuckDB database
@@ -103,12 +116,12 @@ with col4:
 "---"
 st.subheader("Relation Map")
 
-if st.button("Serialize Relaion Map"):
+if st.button("Serialize Relaion Map") or state.relation_map:
     
-    db_serialized_map = RelationMap('demo_data.duckdb')
-    serialized_map = db_serialized_map.serialize_relation_map('relation_map')
+    db_relation_map = RelationMap('demo_data.duckdb')
+    state.relation_map = db_relation_map.serialize_relation_map('relation_map')
         
-    download_map = serialized_map.replace('#','').replace('*','')
+    download_map = state.relation_map.replace('#','').replace('*','')
         
     current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
@@ -116,5 +129,23 @@ if st.button("Serialize Relaion Map"):
         
     st.download_button("Download Relation Map", data=download_map, file_name=file, mime='text')
 
-    with st.expander('Relation Map', expanded=True):
-            st.markdown(serialized_map,unsafe_allow_html=True)
+    with st.expander('Relation Map'):
+            st.markdown(state.relation_map,unsafe_allow_html=True)
+
+    state.openai_api_key = st.text_input("Enter your OpenAI API key", type="password")
+
+    if state.openai_api_key:
+        # Set the API key as an environment variable
+        os.environ['OPENAI_API_KEY'] = state.openai_api_key
+        st.write('OpenAI API Key set!')
+    
+    state.question = st.text_input("Ask a question!")
+
+    if state.openai_api_key and state.relation_map and state.question:
+        api_call = callOpenAI()
+        state.openai_response = api_call.api_call_query(state.relation_map, state.question)
+
+        for i, choice in enumerate(state.openai_response.choices):
+            query = choice.message.content
+            st.write("SQL Query:")
+            st.code(query, language="SQL")
