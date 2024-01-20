@@ -5,7 +5,24 @@ import os
 import datetime
 
 from streamlit import session_state as state
-from helpers import SimilarityIndex, CardinalityIndex, RelationMap, callOpenAI
+from helpers import SimilarityIndex, CardinalityIndex, RelationMap, callOpenAI, CSVLoaderToDuckDB, BigQueryHelper
+
+# Initializing session state values for persistence between application reruns
+
+if 'database_select' not in state:
+    state.database_select = None
+    
+if 'database_source' not in state:
+    state.database_source = None
+
+if 'database_schema' not in state:
+    state.database_schema = None
+    
+if 'database_connection' not in state:
+    state.database_connection = None
+    
+if 'database_path' not in state:
+    state.database_path = None
 
 if 'relation_map' not in state:
     state.relation_map = None
@@ -19,42 +36,32 @@ if 'openai_api_key' not in state:
 if 'openai_response' not in state:
     state.openai_response = None
 
-def load_csv_to_duckdb(data_dir, db_file_path):
-    # Connect to a file-based DuckDB database
-    with duckdb.connect(db_file_path) as conn_build:
-        # Iterate over all files in the directory
-        for filename in os.listdir(data_dir):
-            if filename.endswith(".csv"):
-                try:
-                    # Determine table name (without '.csv')
-                    table_name = os.path.splitext(filename)[0]
-
-                    # Create a table in DuckDB from the DataFrame
-                    conn_build.execute(f"create or replace table {table_name} as select * from '{data_dir}/{filename}'")
-
-                    # Log successful loading
-                    st.write(f"Successfully loaded {filename} into DuckDB as table {table_name}.")
-                except pd.errors.ParserError:
-                    st.write(f"Error: Failed to parse {filename} as CSV.")
-                except Exception as e:
-                    st.write(f"Error: An unexpected error occurred while processing {filename}: {e}")
-
-# Specify the path to your DuckDB file
-db_file_path = 'demo_data.duckdb'
-data_dir = 'data'
-
 # Streamlit UI
 st.title('Obscura Pro Machina')
 "---"
 
-conn_query = duckdb.connect(db_file_path)
-df = conn_query.execute("select * from information_schema.tables").fetchdf()
-conn_query.commit()
-conn_query.close()
+state.database_select = st.selectbox(label='Select your database', options=('DuckDB','BigQuery'))
+
+if state.database_select == 'DuckDB' and state.database_source != 'DuckDB':
+    state.database_path = st.text_input('DuckDB File Path',value='demo_data.duckdb')
+    conn_query = duckdb.connect(state.database_path)
+    state.database_schema = conn_query.execute("select * from information_schema.tables").fetchdf()
+    state.database_source = 'DuckDB'
+    conn_query.commit()
+    conn_query.close()
+    
+if state.database_select == 'BigQuery' and state.database_source != 'BigQuery':
+    key_path = ".secrets\.bigquery-key.json"
+    state.database_connection = BigQueryHelper(key_path)
+    project_id = state.database_connection.get_project_id_from_key_file()
+    datasets_and_tables = state.database_connection.list_datasets_and_tables(project_id)
+    dataset_table_pairs = [(dataset, table) for dataset, tables in datasets_and_tables.items() for table in tables]
+    state.database_schema = pd.DataFrame(dataset_table_pairs, columns=['Dataset', 'Table'])
+    state.database_source = 'BigQuery'
 
 # Display schema information
 st.subheader('Database Schema')
-st.dataframe(df, use_container_width=True, hide_index=True)
+st.dataframe(state.database_schema, use_container_width=True, hide_index=True)
 
 # SQL Query Input
 
@@ -63,15 +70,17 @@ sql_query = st.text_area("Enter your SQL query here:")
 
 # Display Query Results
 if st.button('Run Query'):
-    try:
-        conn_query = duckdb.connect(db_file_path)
-        result = conn_query.execute(sql_query).fetchdf()
-        st.dataframe(result)
-        conn_query.commit()
-        conn_query.close()
-        
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+        try:
+            if state.database_source == 'DuckDB':
+                conn_query = duckdb.connect(state.database_path)
+                result = conn_query.execute(sql_query).fetchdf()
+                conn_query.commit()
+                conn_query.close()
+            elif state.database_source == 'BigQuery':
+                result = state.database_connection.run_query(sql_query)
+            st.dataframe(result)
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
 # Database utility functions        
 "---"
@@ -80,8 +89,11 @@ st.subheader("Utilities")
 col1, col2, col3, col4 = st.columns(4, gap="small")
 
 with col1:
-    if st.button("Build Database File"):
-        load_csv_to_duckdb(data_dir, db_file_path)
+    if state.database_source == 'DuckDB':
+        if st.button("Build Database File"):
+            data_dir = 'data'
+            loader = CSVLoaderToDuckDB(data_dir, state.database_path)
+            loader.load_csv_files()
 
 with col2:
     if st.button("Build Similarity Index"):
