@@ -215,7 +215,7 @@ class BigQueryRelationMap:
             SchemaField('weight', 'FLOAT', mode='REQUIRED'),
             SchemaField('priority', 'FLOAT', mode='REQUIRED'),
         ]
-        dataset_ref = self.client.dataset(dataset_id)
+        dataset_ref = self.bigquery_helper.client.dataset(dataset_id)
         table_ref = dataset_ref.table(target_table_id)
         table = bigquery.Table(table_ref, schema=schema)
         table = self.bigquery_helper.client.create_table(table, exists_ok=replace)
@@ -242,13 +242,13 @@ class BigQueryRelationMap:
         relation_query = f"""
         SELECT 
             left_node.dataset as dataset_left,
-            left_node.table as table_left,
-            left_node.column as column_left,
+            left_node.table as table_name_left,
+            left_node.column as column_name_left,
             left_node.datatype as datatype_left,
             IF(map.left_card < 1, 'many','one') AS join_type_left,
             right_node.dataset as dataset_right,
-            right_node.table as table_right,
-            right_node.column as column_right,
+            right_node.table as table_name_right,
+            right_node.column as column_name_right,
             right_node.datatype as datatype_right,
             IF(map.right_card < 1, 'many','one') AS join_type_right
         
@@ -285,10 +285,19 @@ class BigQueryRelationMap:
                     schema_str += f"      {column} ({datatype})\n"
 
         # Serialize the DataFrame to a human-readable schema map
-        schema_map_str = "Relations:\n"
+        schema_str = "## Database Schema Description\n"
+        
+        for table_name, columns in schema_map.items():
+            schema_str += f"### Table: {table_name}\n#### Columns:\n"
+            for column_name, data_type in columns.items():
+                schema_str += f"- **{column_name}**: *{data_type}*\n"
+
+        # Serialize the DataFrame to a human-readable schema map
+        schema_map_str = "## Relations\n"
+        
         for index, row in relation_map_enriched.iterrows():
             schema_map_str += (
-                f"  {row['table_left']}.{row['column_left']} references {row['table_right']}.{row['column_right']} forming a {row['join_type_left']}-to-{row['join_type_right']} relationship between {project_id}.{row['dataset_left']}.{row['table_left']} and {project_id}.{row['dataset_right']}.{row['table_right']}.\n"
+                f"- **{row['table_name_left']}.{row['column_name_left']}** references **{row['table_name_right']}.{row['column_name_right']}** forming a **{row['join_type_left']}**-to-**{row['join_type_right']}** relationship.\n"
             )
             
         return schema_str + schema_map_str
