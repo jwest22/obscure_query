@@ -5,7 +5,7 @@ import os
 import datetime
 
 from streamlit import session_state as state
-from helpers import SimilarityIndex, CardinalityIndex, RelationMap, callOpenAI, CSVLoaderToDuckDB, BigQueryHelper
+from helpers import DuckDBSimilarityIndex, BigQuerySimilarityIndex, DuckDBCardinalityIndex, DuckDBRelationMap, callOpenAI, CSVLoaderToDuckDB, BigQueryHelper
 
 # Initializing session state values for persistence between application reruns
 
@@ -23,6 +23,12 @@ if 'database_connection' not in state:
     
 if 'database_path' not in state:
     state.database_path = None
+    
+if 'source_dataset' not in state:
+    state.source_dataset = None
+    
+if 'target_dataset' not in state:
+    state.target_dataset = None
 
 if 'relation_map' not in state:
     state.relation_map = None
@@ -53,10 +59,11 @@ if state.database_select == 'DuckDB' and state.database_source != 'DuckDB':
 if state.database_select == 'BigQuery' and state.database_source != 'BigQuery':
     key_path = ".secrets\.bigquery-key.json"
     state.database_connection = BigQueryHelper(key_path)
-    project_id = state.database_connection.get_project_id_from_key_file()
+    state.database_path = state.database_connection.get_project_id_from_key_file()
+    project_id = state.database_path
     datasets_and_tables = state.database_connection.list_datasets_and_tables(project_id)
     dataset_table_pairs = [(dataset, table) for dataset, tables in datasets_and_tables.items() for table in tables]
-    state.database_schema = pd.DataFrame(dataset_table_pairs, columns=['Dataset', 'Table'])
+    state.database_schema = pd.DataFrame(dataset_table_pairs, columns=['dataset', 'table'])
     state.database_source = 'BigQuery'
 
 # Display schema information
@@ -94,34 +101,44 @@ with col1:
             data_dir = 'data'
             loader = CSVLoaderToDuckDB(data_dir, state.database_path)
             loader.load_csv_files()
+            
+    if state.database_source == 'BigQuery':
+        state.source_dataset = st.text_input('Source BigQuery Dataset')
+        state.target_dataset = st.text_input('Target BigQuery Dataset')
 
 with col2:
-    if st.button("Build Similarity Index"):
-        
-        df_info_schema_cols = conn_query.execute("select * from information_schema.columns").fetchdf()
-        db_similarity = SimilarityIndex('demo_data.duckdb')
-
-        # Number of minhash functions
-        k = 128
-
-        similarity_results = db_similarity.compute_similarity_index_for_assets(df_info_schema_cols, k, similarity_threshold=0.8)
-        similarity_index = db_similarity.create_similarity_index_table(similarity_results)
-
-        st.write(similarity_index)
-
-with col3:
     if st.button("Build Cardinality Index"):
-        db_cardinality = CardinalityIndex('demo_data.duckdb')
+        if state.database_source == 'DuckDB':
+            db_cardinality = DuckDBCardinalityIndex('demo_data.duckdb')
+            cardinality_index = db_cardinality.create_cardinality_table()
+            cardinality_update = db_cardinality.update_duckdb_table_with_cardinality()
         
-        cardinality_index = db_cardinality.create_cardinality_table()
-        st.write(cardinality_index)
+        if state.database_source == 'BigQuery':
+            assets = state.database_connection.get_bigquery_assets(state.source_dataset)
+            cardinality_index = state.database_connection.build_bigquery_index(state.database_path, assets, state.target_dataset,'oqr_cardinality_index',replace=True)
+            cardinality_update = state.database_connection.update_bigquery_table_with_cardinality(state.database_path, state.target_dataset,'oqr_cardinality_index')
         
-        cardinality_update = db_cardinality.update_duckdb_table_with_cardinality()
         st.write(cardinality_update)
         
+
+with col3:
+    if st.button("Build Similarity Index") and state.target_dataset is not None:
+        # Number of minhash functions
+        k = 128
+        if state.database_source == 'DuckDB':
+            df_info_schema_cols = conn_query.execute("select * from information_schema.columns").fetchdf()
+            db_similarity = DuckDBSimilarityIndex('demo_data.duckdb')
+            similarity_results = db_similarity.compute_similarity_index_for_assets(df_info_schema_cols, k, similarity_threshold=0.8)
+            similarity_index = db_similarity.create_similarity_index_table(similarity_results)
+            st.write(similarity_index)
+        if state.database_source == 'BigQuery':
+            db_similarity = BigQuerySimilarityIndex(state.database_connection)
+            similarity_index = db_similarity.build_bigquery_jaccard(state.database_path, state.target_dataset, 'oqr_cardinality_index', state.source_dataset, 'oqr_similarity_index', k, replace=True)
+            st.write(similarity_index)
+
 with col4:
     if st.button("Build Relation Map"):
-        db_relation_map = RelationMap('demo_data.duckdb')
+        db_relation_map = DuckDBRelationMap('demo_data.duckdb')
         relation_map = db_relation_map.create_relation_map(index_table_id='cardinality_index', similarity_table_id='similarity_index')
         st.write(relation_map)
 
@@ -130,7 +147,7 @@ st.subheader("Relation Map")
 
 if st.button("Serialize Relaion Map") or state.relation_map:
     
-    db_relation_map = RelationMap('demo_data.duckdb')
+    db_relation_map = DuckDBRelationMap('demo_data.duckdb')
     state.relation_map = db_relation_map.serialize_relation_map('relation_map')
         
     download_map = state.relation_map.replace('#','').replace('*','')

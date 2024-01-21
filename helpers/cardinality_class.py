@@ -1,7 +1,10 @@
 import duckdb
-import pandas as pd
+from google.cloud import bigquery
+from google.cloud.bigquery import SchemaField
+from google.cloud.exceptions import NotFound
 
-class CardinalityIndex:
+from .utility_class import BigQueryHelper
+class DuckDBCardinalityIndex:
     def __init__(self, db_path):
         """
         Initialize the CardinalityIndex class, which connects to a DuckDB database to manage cardinality information.
@@ -94,4 +97,58 @@ class CardinalityIndex:
         conn.commit()
         conn.close()
         
+        return log
+
+class BigQueryCardinalityIndex:
+    def __init__(self, key_path):
+        self.key_path = key_path
+        self.bigquery_helper = BigQueryHelper(key_path)
+
+    def build_bigquery_index(self, project_id, df, dataset_id, table_id, replace):
+        df = df[~((df['dataset'] == dataset_id) & (df['table'] == table_id))]
+        schema = [
+            SchemaField('uuid', 'STRING', mode='REQUIRED'),
+            SchemaField('dataset', 'STRING', mode='REQUIRED'),
+            SchemaField('table', 'STRING', mode='REQUIRED'),
+            SchemaField('column', 'STRING', mode='REQUIRED'),
+            SchemaField('datatype', 'STRING', mode='REQUIRED'),
+            SchemaField('cardinality', 'FLOAT'),
+        ]
+
+        dataset_ref = self.bigquery_helper.client.dataset(dataset_id)
+
+        table_ref = dataset_ref.table(table_id)
+        table = bigquery.Table(table_ref, schema=schema)
+        table = self.bigquery_helper.client.create_table(table, exists_ok=True)
+
+        job_config = bigquery.LoadJobConfig(schema=schema)
+        job_config.write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE if replace else bigquery.WriteDisposition.WRITE_APPEND
+        job = self.bigquery_helper.client.load_table_from_dataframe(df, table_ref, job_config=job_config)
+        job.result()
+        log = (f"Cardinality index initialized at {project_id}.{dataset_id}.{table_id}")
+        
+        return log
+
+    def update_bigquery_table_with_cardinality(self, project_id, dataset_id, table_id):
+        query = f"SELECT dataset, table, column FROM `{project_id}.{dataset_id}.{table_id}`"
+        df = self.bigquery_helper.client.query(query).result().to_dataframe()
+
+        for index, row in df.iterrows():
+            target_dataset = row['dataset']
+            target_table = row['table']
+            target_column = row['column']
+
+            sql = f"""
+            UPDATE `{project_id}.{dataset_id}.{table_id}`
+            SET Cardinality = (
+                SELECT COUNT(DISTINCT {target_column}) / COUNT({target_column})
+                FROM `{target_dataset}.{target_table}`
+                WHERE {target_column} IS NOT NULL
+            )
+            WHERE Dataset = '{target_dataset}' AND table = '{target_table}' AND column = '{target_column}'
+            """
+            self.bigquery_helper.client.query(sql).result()
+
+        log = (f"Cardinality index at {project_id}.{dataset_id}.{table_id} successfully populated")
+
         return log

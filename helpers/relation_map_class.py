@@ -1,6 +1,13 @@
 import duckdb
+import pandas as pd
+import uuid
+import json
+from google.cloud import bigquery
+from google.cloud.exceptions import NotFound
+from google.cloud.bigquery import SchemaField
 
-class RelationMap:
+from .utility_class import BigQueryHelper
+class DuckDBRelationMap:
     def __init__(self, db_path):
         """
         Initialize the RelationMap class with the path to the DuckDB database.
@@ -162,6 +169,129 @@ class RelationMap:
         for index, row in relation_map_enriched.iterrows():
             schema_map_str += (
                 f"- **{row['table_name_left']}.{row['column_name_left']}** references **{row['table_name_right']}.{row['column_name_right']}** forming a **{row['join_type_left']}**-to-**{row['join_type_right']}** relationship.\n"
+            )
+            
+        return schema_str + schema_map_str
+
+class BigQueryRelationMap:
+    def __init__(self, key_path):
+        self.key_path = key_path
+        self.bigquery_helper = BigQueryHelper(key_path)
+        
+    def build_bigquery_relation_map(self, project_id, dataset_id, index_table_id, jaccard_table_id, target_table_id, sim_threshold=0, replace=False):
+        query = f"""
+        SELECT 
+            CAST(inter_a.uuid AS STRING) as left_uuid,
+            CAST(inter_b.uuid AS STRING) as right_uuid,
+            inter_a.cardinality as left_card,
+            inter_b.cardinality as right_card,
+            1 as weight,
+            0 as priority
+        FROM `{project_id}.{dataset_id}.{index_table_id}` inter_a
+        INNER JOIN `{project_id}.{dataset_id}.{index_table_id}` inter_b
+        ON inter_a.table != inter_b.table
+        AND inter_a.column = inter_b.column
+        AND inter_a.datatype = inter_b.datatype
+        UNION ALL
+        SELECT
+            CAST(jaccard_a.uuid AS STRING) as left_uuid,
+            CAST(jaccard_b.uuid AS STRING) as right_uuid,
+            jaccard_a.cardinality as left_card,
+            jaccard_b.cardinality as right_card,
+            jaccard.jaccard as weight,
+            1 as priority
+        FROM `{project_id}.{dataset_id}.{jaccard_table_id}` jaccard
+        INNER JOIN `{project_id}.{dataset_id}.{index_table_id}` jaccard_a
+        ON jaccard.table_a = jaccard_a.table AND jaccard.column_a = jaccard_a.column
+        INNER JOIN `{project_id}.{dataset_id}.{index_table_id}` jaccard_b
+        ON jaccard.table_b = jaccard_b.table AND jaccard.column_b = jaccard_b.column
+        WHERE jaccard.jaccard > {sim_threshold}
+        """
+
+        relation = self.bigquery_helper.client.query(query).result().to_dataframe()
+        
+        schema = [
+            SchemaField('left_uuid', 'STRING', mode='REQUIRED'),
+            SchemaField('right_uuid', 'STRING', mode='REQUIRED'),
+            SchemaField('left_card', 'FLOAT', mode='REQUIRED'),
+            SchemaField('right_card', 'FLOAT', mode='REQUIRED'),
+            SchemaField('weight', 'FLOAT', mode='REQUIRED'),
+            SchemaField('priority', 'FLOAT', mode='REQUIRED'),
+        ]
+        dataset_ref = self.client.dataset(dataset_id)
+        table_ref = dataset_ref.table(target_table_id)
+        table = bigquery.Table(table_ref, schema=schema)
+        table = self.bigquery_helper.client.create_table(table, exists_ok=replace)
+        
+        job_config = bigquery.LoadJobConfig(schema=schema)
+        job_config.write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE if replace else bigquery.WriteDisposition.WRITE_APPEND
+        job = self.bigquery_helper.client.load_table_from_dataframe(relation, table_ref, job_config=job_config)
+        job.result()
+        log = (f"Relation map built at {project_id}.{dataset_id}.{target_table_id}")
+
+        return log
+    
+    def serialize_bigquery_relation_map(self, project_id, dataset_id, index_table_id, map_table_id):
+        index_query = f"""
+        SELECT 
+            dataset,
+            table,
+            column,
+            datatype
+        
+        FROM `{project_id}.{dataset_id}.{index_table_id}`
+        """   
+        
+        relation_query = f"""
+        SELECT 
+            left_node.dataset as dataset_left,
+            left_node.table as table_left,
+            left_node.column as column_left,
+            left_node.datatype as datatype_left,
+            IF(map.left_card < 1, 'many','one') AS join_type_left,
+            right_node.dataset as dataset_right,
+            right_node.table as table_right,
+            right_node.column as column_right,
+            right_node.datatype as datatype_right,
+            IF(map.right_card < 1, 'many','one') AS join_type_right
+        
+        FROM `{project_id}.{dataset_id}.{map_table_id}` map
+        INNER JOIN `{project_id}.{dataset_id}.{index_table_id}` left_node
+        ON map.left_uuid = left_node.uuid
+        INNER JOIN `{project_id}.{dataset_id}.{index_table_id}` right_node
+        ON map.right_uuid = right_node.uuid
+        """
+        index_map = self.bigquery_helper.client.query(index_query).result().to_dataframe()
+        relation_map_enriched = self.bigquery_helper.client.query(relation_query).result().to_dataframe()
+        
+        # Create a schema map for tables and columns with data types
+        schema_map = {}
+        for _, row in index_map.iterrows():
+            dataset = row[f'dataset']
+            table = row[f'table']
+            column = row[f'column']
+            datatype = row[f'datatype']
+            if dataset not in schema_map:
+                schema_map[dataset] = {}
+            if table not in schema_map[dataset]:
+                schema_map[dataset][table] = {}
+            schema_map[dataset][table][column] = datatype
+
+        # Serialize the table schema with data types
+        schema_str = "Database Schema Description:\n"
+        schema_str += f"Project ID: {project_id}\n"
+        for dataset, tables in schema_map.items():
+            schema_str += f"Dataset: {dataset}\n"
+            for table, columns in tables.items():
+                schema_str += f"  Table: {table}\n    Columns:\n"
+                for column, datatype in columns.items():
+                    schema_str += f"      {column} ({datatype})\n"
+
+        # Serialize the DataFrame to a human-readable schema map
+        schema_map_str = "Relations:\n"
+        for index, row in relation_map_enriched.iterrows():
+            schema_map_str += (
+                f"  {row['table_left']}.{row['column_left']} references {row['table_right']}.{row['column_right']} forming a {row['join_type_left']}-to-{row['join_type_right']} relationship between {project_id}.{row['dataset_left']}.{row['table_left']} and {project_id}.{row['dataset_right']}.{row['table_right']}.\n"
             )
             
         return schema_str + schema_map_str

@@ -1,6 +1,6 @@
-from .similarity_index_class import SimilarityIndex
-from .cardinality_class import CardinalityIndex
-from .relation_map_class import RelationMap
+from .similarity_index_class import DuckDBSimilarityIndex, BigQuerySimilarityIndex
+from .cardinality_class import DuckDBCardinalityIndex, BigQueryCardinalityIndex
+from .relation_map_class import DuckDBRelationMap, BigQueryRelationMap
 from .api_call_class import callOpenAI
-from .initialize_db_class import CSVLoaderToDuckDB, BigQueryHelper
-
+from .initialize_db_class import CSVLoaderToDuckDB
+from .utility_class import BigQueryHelper

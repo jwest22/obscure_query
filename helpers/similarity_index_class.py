@@ -1,8 +1,12 @@
 from datasketch import MinHash
 import pandas as pd
 import duckdb
+from google.cloud import bigquery
+from google.cloud.bigquery import SchemaField
+from google.cloud.exceptions import NotFound
 
-class SimilarityIndex:
+from .utility_class import BigQueryHelper
+class DuckDBSimilarityIndex:
     def __init__(self, db_path):
         """
         Initialize the SimilarityIndex class with the path to the DuckDB database.
@@ -153,3 +157,87 @@ class SimilarityIndex:
         conn.close()
 
         return log
+
+class BigQuerySimilarityIndex:
+    
+    def __init__(self, key_path):
+        self.key_path = key_path
+        self.bigquery_helper = BigQueryHelper(key_path)
+
+    def build_bigquery_jaccard(self, project_id, dataset_id, table_id, target_dataset_id, target_table_id, k, replace):
+        schema = [
+            SchemaField('table_a', 'STRING', mode='REQUIRED'),
+            SchemaField('column_a', 'STRING', mode='REQUIRED'),
+            SchemaField('table_b', 'STRING', mode='REQUIRED'),
+            SchemaField('column_b', 'STRING', mode='REQUIRED'),
+            SchemaField('jaccard', 'FLOAT', mode='REQUIRED'),
+        ]
+
+        dataset_ref = self.bigquery_helper.client.dataset(dataset_id)
+        table_ref = dataset_ref.table(target_table_id)
+        table = bigquery.Table(table_ref, schema=schema)
+        table = self.bigquery_helper.client.create_table(table, exists_ok=True)
+
+        dataframe = self.bigquery_helper.get_bigquery_table_to_dataframe(dataset_id, table_id)
+        results = self.compute_jaccard_index_for_assets(project_id, dataframe, target_dataset_id, k)
+
+        job_config = bigquery.LoadJobConfig(schema=schema)
+        job_config.write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE if replace else bigquery.WriteDisposition.WRITE_APPEND
+        results_df = pd.DataFrame(results)
+        results_df.columns = [
+            'table_a',
+            'column_a',
+            'table_b',
+            'column_b',
+            'jaccard'
+        ]
+        job = self.bigquery_helper.client.load_table_from_dataframe(results_df, table_ref, job_config=job_config)
+        job.result()
+        
+        log = (f"Similarity index built at {project_id}.{dataset_id}.{target_table_id}")
+
+        return log
+
+    def compute_jaccard_index_for_assets(self, project_id, dataframe, dataset, k):
+        selected_columns_df = dataframe[['table', 'column', 'datatype']]
+        column_pairs = set()
+        jaccard_results = []
+
+        for index1, row1 in selected_columns_df.iterrows():
+            for index2 in range(index1 + 1, len(selected_columns_df)):
+                row2 = selected_columns_df.iloc[index2]
+                table1, col1, type1 = row1['table'], row1['column'], row1['datatype']
+                table2, col2, type2 = row2['table'], row2['column'], row2['datatype']
+
+                # Ensure datatypes are the same and tables are different
+                if type1 == type2 and table1 != table2:
+                    pair = (table1, col1, table2, col2)
+
+                    # Avoid processing the same pair again
+                    if pair not in column_pairs:
+                        column_pairs.add(pair)
+
+                        # Query to compute Jaccard index
+                        query = f"""
+                        WITH minhash_A AS (
+                            SELECT DISTINCT FARM_FINGERPRINT(TO_JSON_STRING(t.{col1})) AS h
+                            FROM {project_id}.{dataset}.{table1} AS t
+                            ORDER BY h
+                            LIMIT {k}
+                        ),
+                        minhash_B AS (
+                            SELECT DISTINCT FARM_FINGERPRINT(TO_JSON_STRING(t.{col2})) AS h
+                            FROM {project_id}.{dataset}.{table2} AS t
+                            ORDER BY h
+                            LIMIT {k}
+                        )
+                        SELECT COUNT(*) / {k} AS APPROXIMATE_JACCARD_INDEX
+                        FROM minhash_A
+                        INNER JOIN minhash_B ON minhash_A.h = minhash_B.h
+                        """
+                        query_result = self.bigquery_helper.client.query(query).result()
+                        jaccard_index = list(query_result)[0].APPROXIMATE_JACCARD_INDEX
+
+                        jaccard_results.append((table1, col1, table2, col2, jaccard_index))
+
+        return jaccard_results
