@@ -41,6 +41,7 @@ class BigQueryHelper:
                     'table': table_id,
                     'column': col.name,
                     'datatype': col.field_type,
+                    'description':col.description,
                     'cardinality': None
                 }
                 rows.append(row)
@@ -57,7 +58,7 @@ class BigQueryHelper:
                 dataset_ref = self.client.dataset(dataset_id)
                 rows.extend(self.get_index_rows(dataset_id, dataset_ref))
 
-        return pd.DataFrame(rows, columns=['uuid', 'dataset', 'table', 'column', 'datatype', 'cardinality'])
+        return pd.DataFrame(rows, columns=['uuid', 'dataset', 'table', 'column', 'datatype', 'description', 'cardinality'])
     
     def run_query(self, query=None):
         if query is not None:

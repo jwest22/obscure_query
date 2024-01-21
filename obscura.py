@@ -82,6 +82,7 @@ if st.button('Run Query'):
                 conn_query.commit()
                 conn_query.close()
             elif state.database_source == 'BigQuery':
+                bigquery_connection = BigQueryHelper(key_path)
                 result = bigquery_connection.run_query(sql_query)
             st.dataframe(result)
         except Exception as e:
@@ -120,7 +121,6 @@ with col2:
         
         st.write(cardinality_update)
         
-
 with col3:
     if st.button("Build Similarity Index") and state.target_dataset is not None:
         # Number of minhash functions
@@ -177,11 +177,15 @@ if st.button("Serialize Relaion Map") or state.relation_map:
     
     state.question = st.text_input("Ask a question!")
 
-    if state.openai_api_key and state.relation_map and state.question:
+    if state.openai_api_key and state.relation_map and state.question and not state.openai_response:
         api_call = callOpenAI()
         state.openai_response = api_call.api_call_query(state.relation_map, state.question)
-
+        
+    if state.openai_response is not None:
         for i, choice in enumerate(state.openai_response.choices):
             query = choice.message.content
             st.write("SQL Query:")
             st.code(query, language="SQL")
+
+    if st.button("Clear Response"):
+        state.openai_response = None

@@ -234,7 +234,8 @@ class BigQueryRelationMap:
             dataset,
             table,
             column,
-            datatype
+            datatype,
+            description
         
         FROM `{project_id}.{dataset_id}.{index_table_id}`
         """   
@@ -268,6 +269,7 @@ class BigQueryRelationMap:
             table = row[f'table']
             column = row[f'column']
             datatype = row[f'datatype']
+            description = row[f'description']
             if dataset not in schema_map:
                 schema_map[dataset] = {}
             if table not in schema_map[dataset]:
@@ -275,25 +277,18 @@ class BigQueryRelationMap:
             schema_map[dataset][table][column] = datatype
 
         # Serialize the table schema with data types
-        schema_str = "Database Schema Description:\n"
+        schema_str = "Database Schema:\n"
         schema_str += f"Project ID: {project_id}\n"
-        for dataset, tables in schema_map.items():
-            schema_str += f"Dataset: {dataset}\n"
-            for table, columns in tables.items():
-                schema_str += f"  Table: {table}\n    Columns:\n"
-                for column, datatype in columns.items():
-                    schema_str += f"      {column} ({datatype})\n"
-
-        # Serialize the DataFrame to a human-readable schema map
-        schema_str = "## Database Schema Description\n"
         
-        for table_name, columns in schema_map.items():
-            schema_str += f"### Table: {table_name}\n#### Columns:\n"
-            for column_name, data_type in columns.items():
-                schema_str += f"- **{column_name}**: *{data_type}*\n"
+        for dataset, tables in schema_map.items():
+            schema_str += f"#### Dataset: {dataset}\n##### Tables:\n"
+            for table, columns in tables.items():
+                schema_str += f"#####  Table: `{project_id}`.`{dataset}`.`{table}`\n###### Columns:\n\n"
+                for column, datatype in columns.items():
+                    schema_str += f"- **{column}**(*{datatype}*): {description}\n"
 
         # Serialize the DataFrame to a human-readable schema map
-        schema_map_str = "## Relations\n"
+        schema_map_str = "### Relations\n"
         
         for index, row in relation_map_enriched.iterrows():
             schema_map_str += (

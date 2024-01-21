@@ -112,6 +112,7 @@ class BigQueryCardinalityIndex:
             SchemaField('table', 'STRING', mode='REQUIRED'),
             SchemaField('column', 'STRING', mode='REQUIRED'),
             SchemaField('datatype', 'STRING', mode='REQUIRED'),
+            SchemaField('description', 'STRING'),
             SchemaField('cardinality', 'FLOAT'),
         ]
 
@@ -141,7 +142,7 @@ class BigQueryCardinalityIndex:
             sql = f"""
             UPDATE `{project_id}.{dataset_id}.{table_id}`
             SET Cardinality = (
-                SELECT COUNT(DISTINCT {target_column}) / COUNT({target_column})
+                SELECT SAFE_DIVIDE(COUNT(DISTINCT {target_column}), COUNT({target_column}))
                 FROM `{target_dataset}.{target_table}`
                 WHERE {target_column} IS NOT NULL
             )
