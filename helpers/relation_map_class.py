@@ -1,7 +1,4 @@
 import duckdb
-import pandas as pd
-import uuid
-import json
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from google.cloud.bigquery import SchemaField

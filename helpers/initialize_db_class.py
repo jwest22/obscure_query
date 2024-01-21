@@ -3,10 +3,6 @@ import duckdb
 import pandas as pd
 import streamlit as st
 import pandas as pd
-import uuid
-import json
-from google.cloud import bigquery
-from google.cloud.bigquery import SchemaField
 from google.cloud.exceptions import NotFound
 class CSVLoaderToDuckDB:
     def __init__(self, data_dir, db_file_path):
